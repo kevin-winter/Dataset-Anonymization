@@ -5,6 +5,7 @@ class Vectorizer():
 
     def transform(self, df):
         df = df.copy()
+        self.columns = df.columns
         self.mappings = {}
         for c in df:
             if df[c].dtype.name.__eq__("category"):
@@ -18,7 +19,7 @@ class Vectorizer():
 
     def inverse_transform(self, df):
         df = df.copy()
-        descaled = pd.DataFrame(self.scaler.inverse_transform(df), columns=df.columns)
+        descaled = pd.DataFrame(self.scaler.inverse_transform(df), columns=self.columns)
         for k, v in self.mappings.items():
             descaled[k] = v[descaled[k].astype(int)]
 
