@@ -25,7 +25,8 @@ class VAE():
             self.add_loss(self.vae_loss(inputs[0], inputs[1]), inputs=inputs)
             return inputs[0]
 
-    def __init__(self, intermediate_dim=256, latent_dim=2, epsilon_std=1.0):
+    def __init__(self, n_hiddenlayers, intermediate_dim=256, latent_dim=2, epsilon_std=1.0):
+        self.n_hiddenlayers = n_hiddenlayers
         self.latent_dim = latent_dim
         self.intermediate_dim = intermediate_dim
         self.epsilon_std = epsilon_std
@@ -34,29 +35,38 @@ class VAE():
         self.batch_size = batch_size
         self.original_dim = original_dim
 
+        # Create En- and Decoder for training
         x = Input(batch_shape=(batch_size, original_dim))
-        h = Dense(self.intermediate_dim, activation='relu')(x)
-        h = Dense(self.intermediate_dim, activation='relu')(h)
+        for i in range(self.n_hiddenlayers):
+            if i == 0: h = x
+            h = Dense(self.intermediate_dim, activation='relu')(h)
         self.z_mean = Dense(self.latent_dim)(h)
         self.z_log_var = Dense(self.latent_dim)(h)
         z = Lambda(self._sampling)([self.z_mean, self.z_log_var])
 
-        decoder_h1 = Dense(self.intermediate_dim, activation='relu', input_dim=(self.latent_dim,))
-        decoder_h2 = Dense(self.intermediate_dim, activation='relu')
+        decoder_layers = []
+        decoder_layers.append(Dense(self.intermediate_dim, activation='relu', input_dim=(self.latent_dim,)))
+        for i in range(self.n_hiddenlayers-1):
+            decoder_layers.append(Dense(self.intermediate_dim, activation='relu'))
         decoder_mean = Dense(original_dim, activation='sigmoid')
-        hd = decoder_h1(z)
-        hd = decoder_h2(hd)
+
+        for i in range(self.n_hiddenlayers):
+            if i == 0: hd = z
+            hd = decoder_layers[i](hd)
         x_decoded_mean = decoder_mean(hd)
         y = self.CustomVariationalLayer(self)([x, x_decoded_mean])
 
         vae = Model(x, y)
         vae.compile(optimizer='rmsprop', loss=None)
 
+        # Create Encoder
         encoder = Model(x, self.z_mean)
 
+        # Create Decoder
         decoder_input = Input(shape=(self.latent_dim,))
-        _hd = decoder_h1(decoder_input)
-        _hd = decoder_h2(_hd)
+        for i in range(self.n_hiddenlayers):
+            if i == 0: _hd = decoder_input
+            _hd = decoder_layers[i](_hd)
         _x_decoded_mean = decoder_mean(_hd)
         generator = Model(decoder_input, _x_decoded_mean)
 
@@ -69,13 +79,13 @@ class VAE():
         epsilon = K.random_normal(shape=(self.batch_size, self.latent_dim), mean=0., stddev=self.epsilon_std)
         return z_mean + K.exp(z_log_var / 2) * epsilon
 
-    def train(self, x_train, x_test, epochs=50, batch_size=100):
+    def train(self, x_train, x_test, epochs=50, batch_size=100, early_stopping=True):
+        callbacks = [EarlyStopping(monitor='val_loss', patience=2, verbose=0, mode='auto')] if early_stopping else []
         self.init_model(x_train.shape[1], batch_size=batch_size)
         x_train = x_train[:len(x_train)//batch_size*batch_size]
         x_test = x_test[:len(x_test)//batch_size*batch_size]
         self._vae.fit(x_train, shuffle=True, epochs=epochs, batch_size=self.batch_size,
-                      validation_data=(x_test, x_test),
-                      callbacks=[EarlyStopping(monitor='val_loss', patience=2, verbose=0, mode='auto')])
+                      validation_data=(x_test, x_test), callbacks=callbacks)
 
     def sample_z(self, n):
         X = np.random.normal(size=(n, self.latent_dim))

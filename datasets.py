@@ -14,10 +14,9 @@ def split_data(X, y):
         return features_train, features_test, labels_train, labels_test
 
 
-def adult_dataset():
-    headers = ["age","workclass","fnlwgt","education","education-num","marital-status","occupation","relationship",
-               "race","sex","capital-gain","capital-loss","hours-per-week","native-country","salary"]
 
+
+def adult_dataset():
     dtypes = {"age": int,
               "workclass": "category",
               "fnlwgt": int,

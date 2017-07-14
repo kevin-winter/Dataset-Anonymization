@@ -2,8 +2,9 @@ from sklearn import preprocessing as pp
 import pandas as pd
 from collections import defaultdict
 import numpy as np
+from LabelEncoder import LabelEncoder
 
-class Vectorizer():
+class Vectorizer:
 
     def __init__(self, binary=False):
         self.binary = binary
@@ -17,9 +18,10 @@ class Vectorizer():
             if self.binary:
                 df = pd.get_dummies(df)
             else:
-                self.le = defaultdict(pp.LabelEncoder)
-                df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name].fit_transform(x))
-
+                self.le = defaultdict(LabelEncoder)
+                df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name]
+                                                          .fit(pyramid_sorted_categories(x), labels=True)
+                                                          .transform(x))
         if scale:
             self.mms = pp.MinMaxScaler()
             df[df.columns] = self.mms.fit_transform(df)
@@ -48,3 +50,8 @@ def from_dummies(data, categories, prefix_sep='_'):
         out[l] = pd.Categorical(np.array(labs)[np.argmax(data[cols].as_matrix(), axis=1)])
         out.drop(cols, axis=1, inplace=True)
     return out
+
+
+def pyramid_sorted_categories(series):
+    s = series.value_counts()
+    return np.array(s[0::2][::-1].append(s[1::2]).index)
