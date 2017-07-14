@@ -9,7 +9,7 @@ class Vectorizer:
     def __init__(self, binary=False):
         self.binary = binary
 
-    def transform(self, df, scale=True, encode=True):
+    def fit_transform(self, df, scale=True, encode=True):
         df = df.copy()
         self.columns = df.columns
         self.catcols = df.columns[df.dtypes.astype(str) == "category"]
@@ -27,6 +27,20 @@ class Vectorizer:
             df[df.columns] = self.mms.fit_transform(df)
 
         self.columns_t = df.columns
+        return df
+
+    def transform(self, df, scale=True, encode=True):
+        df = df.copy()
+        df.columns = self.columns
+
+        if encode:
+            if self.binary:
+                df = pd.get_dummies(df)
+            else:
+                df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name].transform(x))
+        if scale:
+            df[df.columns] = self.mms.transform(df)
+
         return df
 
     def inverse_transform(self, df, descale=True, decode=True):
