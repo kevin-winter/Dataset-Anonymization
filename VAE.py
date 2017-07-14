@@ -25,27 +25,28 @@ class VAE():
             self.add_loss(self.vae_loss(inputs[0], inputs[1]), inputs=inputs)
             return inputs[0]
 
-    def __init__(self, original_dim=784, intermediate_dim=256, batch_size=100, latent_dim=2,
-                 epsilon_std=1.0):
-        self.batch_size = batch_size
-        self.original_dim = original_dim
+    def __init__(self, intermediate_dim=256, latent_dim=2, epsilon_std=1.0):
         self.latent_dim = latent_dim
         self.intermediate_dim = intermediate_dim
         self.epsilon_std = epsilon_std
 
-        x = Input(batch_shape=(batch_size, original_dim))
-        h0 = Dense(intermediate_dim, activation='relu')(x)
-        h = Dense(intermediate_dim, activation='relu')(h0)
-        self.z_mean = Dense(latent_dim)(h)
-        self.z_log_var = Dense(latent_dim)(h)
-        z = Lambda(self._sampling, output_shape=(latent_dim,))([self.z_mean, self.z_log_var])
+    def init_model(self, original_dim, batch_size):
+        self.batch_size = batch_size
+        self.original_dim = original_dim
 
-        decoder_h1 = Dense(intermediate_dim, activation='relu')
-        h_decoded1 = decoder_h1(z)
-        decoder_h2 = Dense(intermediate_dim, activation='relu')
-        h_decoded2 = decoder_h2(h_decoded1)
+        x = Input(batch_shape=(batch_size, original_dim))
+        h = Dense(self.intermediate_dim, activation='relu')(x)
+        h = Dense(self.intermediate_dim, activation='relu')(h)
+        self.z_mean = Dense(self.latent_dim)(h)
+        self.z_log_var = Dense(self.latent_dim)(h)
+        z = Lambda(self._sampling)([self.z_mean, self.z_log_var])
+
+        decoder_h1 = Dense(self.intermediate_dim, activation='relu', input_dim=(self.latent_dim,))
+        decoder_h2 = Dense(self.intermediate_dim, activation='relu')
         decoder_mean = Dense(original_dim, activation='sigmoid')
-        x_decoded_mean = decoder_mean(h_decoded2)
+        hd = decoder_h1(z)
+        hd = decoder_h2(hd)
+        x_decoded_mean = decoder_mean(hd)
         y = self.CustomVariationalLayer(self)([x, x_decoded_mean])
 
         vae = Model(x, y)
@@ -53,10 +54,10 @@ class VAE():
 
         encoder = Model(x, self.z_mean)
 
-        decoder_input = Input(shape=(latent_dim,))
-        _h_decoded1 = decoder_h1(decoder_input)
-        _h_decoded2 = decoder_h2(_h_decoded1)
-        _x_decoded_mean = decoder_mean(_h_decoded2)
+        decoder_input = Input(shape=(self.latent_dim,))
+        _hd = decoder_h1(decoder_input)
+        _hd = decoder_h2(_hd)
+        _x_decoded_mean = decoder_mean(_hd)
         generator = Model(decoder_input, _x_decoded_mean)
 
         self._vae = vae
@@ -68,18 +69,22 @@ class VAE():
         epsilon = K.random_normal(shape=(self.batch_size, self.latent_dim), mean=0., stddev=self.epsilon_std)
         return z_mean + K.exp(z_log_var / 2) * epsilon
 
-    def train(self, x_train, x_test, epochs=50):
+    def train(self, x_train, x_test, epochs=50, batch_size=100):
+        self.init_model(x_train.shape[1], batch_size=batch_size)
+        x_train = x_train[:len(x_train)//batch_size*batch_size]
+        x_test = x_test[:len(x_test)//batch_size*batch_size]
         self._vae.fit(x_train, shuffle=True, epochs=epochs, batch_size=self.batch_size,
                       validation_data=(x_test, x_test),
                       callbacks=[EarlyStopping(monitor='val_loss', patience=2, verbose=0, mode='auto')])
 
     def sample_z(self, n):
-        #X = K.random_normal(shape=(n, self.latent_dim), mean=0., stddev=self.epsilon_std)
         X = np.random.normal(size=(n, self.latent_dim))
         y = self._generator.predict(X, batch_size=n)
         return y
 
     def plot_embedding(self, x_test, y_test):
+        x_test = x_test[:len(x_test)//self.batch_size*self.batch_size]
+        y_test = y_test[:len(x_test)//self.batch_size*self.batch_size]
         x_test_encoded = self._encoder.predict(x_test, batch_size=self.batch_size)
         plt.figure(figsize=(6, 6))
         plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)

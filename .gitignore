@@ -3,3 +3,4 @@
 tmp
 *.iml
 __pycache__
+MNIST_data
