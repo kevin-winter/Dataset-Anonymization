@@ -23,7 +23,7 @@ class LabelEncoder:
 
     def inverse_transform(self, y):
         diff = np.setdiff1d(y, np.arange(len(self.classes_)))
-        if diff:
+        if len(diff) != 0:
             raise ValueError("y contains new labels: %s" % str(diff))
         y = np.asarray(y)
         return self.classes_[y]

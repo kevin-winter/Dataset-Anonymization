@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
 
 from keras.layers import Input, Dense, Lambda, Layer
 from keras.models import Model
@@ -101,21 +100,3 @@ class VAE():
         plt.colorbar()
         plt.show()
 
-    def plot_samples(self):
-        n = 15
-        digit_size = 28
-        figure = np.zeros((digit_size * n, digit_size * n))
-        grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-        grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
-        for i, yi in enumerate(grid_x):
-            for j, xi in enumerate(grid_y):
-                z_sample = np.array([[xi, yi]])
-                x_decoded = self._generator.predict(z_sample)
-                digit = x_decoded[0].reshape(digit_size, digit_size)
-                figure[i * digit_size: (i + 1) * digit_size,
-                j * digit_size: (j + 1) * digit_size] = digit
-
-        plt.figure(figsize=(10, 10))
-        plt.imshow(figure, cmap='Greys_r')
-        plt.show()
