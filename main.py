@@ -65,30 +65,20 @@ elif dataset == "mnist":
 
 vec = Vectorizer(binary=binary_encoding)
 X_t = vec.fit_transform(X)
-
 x_train, x_test, y_train, y_test = split_data(X_t, y)
 
 
 if model == "gmm":
-    gmm = GaussianMixture(n_components=5)
+    gmm = GaussianMixture(n_components=3)
     gmm.fit(x_train, y_train)
-    raw_samples = gmm.sample(500)
-    dec_samples = vec.inverse_transform(raw_samples[0], clip=[0, 1])
-    new = vec.transform(dec_samples).as_matrix()
-    compare(x_train, new)
+    samples = gmm.sample(500)[0]
+
 
 if model == "vae":
     vae = VAE(intermediate_dim=256, latent_dim=4, n_hiddenlayers=3)
     vae.train(x_train, x_test, epochs=50, batch_size=200, early_stopping=True)
     vae.plot_embedding(x_test, y_test)
-
-    raw_samples = vae.sample_z(100)
-    if vec is not None:
-        dec_samples = vec.inverse_transform(raw_samples, decode=False)
-    if dataset == "mnist" and vae.latent_dim == 2:
-        plot_mnist_samples(vae)
-    if X.shape[1] < 20:
-        compare(x_train, raw_samples)
+    samples = vae.sample_z(500)
 
 
 if model == "dbn":
@@ -106,12 +96,13 @@ if model == "rbm":
     rbm = BernoulliRBM(batch_size=100, verbose=1, n_iter=20)
     rbm.fit(x_train)
 
-    n_samples = 20
+    n_samples = 500
     k = 100
-    v = np.random.randint(2, size=(10, x_train.shape[1]))
+    v = np.random.randint(2, size=(n_samples, x_train.shape[1]))
     for i in range(k):
         v = rbm.gibbs(v)
 
+    samples = v
     plt.figure(figsize=(10, 10))
     for x in v:
         plt.imshow(x.reshape(28,28), interpolation="none")
@@ -127,9 +118,16 @@ if model == "gan":
         mnist_dcgan.show_samples(fake=False, save2file=True)
 
     if dataset == "adult":
-        gan = SimpleGAN((x_train.shape[1],), latent_dim=10)
-        gan.train(x_train, train_steps=5000, batch_size=256, save_interval=500)
+        gan = SimpleGAN((x_train.shape[1],), latent_dim=20)
+        gan.train(x_train, train_steps=10000, batch_size=100, save_interval=500)
         samples = gan.sample_G(n=500)
-        dec_samples = vec.inverse_transform(samples, clip=[0, 1])
-        new = vec.transform(dec_samples).as_matrix()
-        compare(x_train, new)
+
+
+if dataset == "adult":
+    dec_samples = vec.inverse_transform(samples, clip=[0, 1])
+    pd.DataFrame(dec_samples).to_excel("{}_adult_out.xlsx".format(model))
+    new = vec.transform(dec_samples).as_matrix()
+    compare(x_train, new)
+
+if dataset == "mnist":
+    plot_mnist_samples(vae)

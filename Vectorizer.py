@@ -6,8 +6,9 @@ from LabelEncoder import LabelEncoder
 
 class Vectorizer:
 
-    def __init__(self, binary=False):
+    def __init__(self, binary=False, feature_range=(0, 1)):
         self.binary = binary
+        self.feature_range = feature_range
 
     def fit_transform(self, df, scale=True, encode=True):
         df = df.copy()
@@ -24,7 +25,7 @@ class Vectorizer:
                                                               .fit(pyramid_sorted_categories(x), labels=True)
                                                               .transform(x))
             if scale:
-                self.mms = pp.MinMaxScaler()
+                self.mms = pp.MinMaxScaler(feature_range=self.feature_range)
                 df[df.columns] = self.mms.fit_transform(df)
 
             self.columns_t = df.columns
