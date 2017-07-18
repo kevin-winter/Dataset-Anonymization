@@ -1,7 +1,5 @@
-from VAE import VAE
 from yadlt.models.boltzmann.dbn import DeepBeliefNetwork
 from yadlt.utils import datasets, utilities
-from datasets import adult_dataset, mnist_dataset, split_data
 from sklearn.neural_network import BernoulliRBM
 from sklearn.mixture import GaussianMixture
 from pandas import scatter_matrix
@@ -10,7 +8,12 @@ import seaborn as sns
 from scipy.stats import norm
 import numpy as np
 import matplotlib.pyplot as plt
+
+from datasets import adult_dataset, mnist_dataset, split_data
 from Vectorizer import Vectorizer
+from SimpleGAN import SimpleGAN
+from DCGAN import DCGAN
+from VAE import VAE
 
 
 def plot_mnist_samples(vae):
@@ -48,8 +51,8 @@ def compare_matrix(original, sample):
     plt.show()
 
 
-dataset = "mnist"
-model = "rbm"
+dataset = "adult"
+model = "gan"
 binary_encoding = False
 reoder_categories = True
 
@@ -70,8 +73,7 @@ if model == "gmm":
     gmm = GaussianMixture(n_components=5)
     gmm.fit(x_train, y_train)
     raw_samples = gmm.sample(500)
-    if vec is not None:
-        dec_samples = vec.inverse_transform(raw_samples[0], clip=[0, 1])
+    dec_samples = vec.inverse_transform(raw_samples[0], clip=[0, 1])
     new = vec.transform(dec_samples).as_matrix()
     compare(x_train, new)
 
@@ -116,4 +118,18 @@ if model == "rbm":
         plt.show()
 
 
+if model == "gan":
+    if dataset == "mnist":
+        x_train = x_train.reshape(-1, 28, 28, 1).astype(np.float32)
+        mnist_dcgan = DCGAN(28, 28, 1, latent_dim=100)
+        mnist_dcgan.train(x_train, train_steps=5000, batch_size=256, save_interval=500)
+        mnist_dcgan.show_samples(fake=True)
+        mnist_dcgan.show_samples(fake=False, save2file=True)
 
+    if dataset == "adult":
+        gan = SimpleGAN((x_train.shape[1],), latent_dim=10)
+        gan.train(x_train, train_steps=5000, batch_size=256, save_interval=500)
+        samples = gan.sample_G(n=500)
+        dec_samples = vec.inverse_transform(samples, clip=[0, 1])
+        new = vec.transform(dec_samples).as_matrix()
+        compare(x_train, new)
