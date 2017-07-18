@@ -105,7 +105,7 @@ if model == "rbm":
     samples = v
     plt.figure(figsize=(10, 10))
     for x in v:
-        plt.imshow(x.reshape(28,28), interpolation="none")
+        plt.imshow(x.reshape(28, 28), interpolation="none")
         plt.show()
 
 
@@ -119,7 +119,7 @@ if model == "gan":
 
     if dataset == "adult":
         gan = SimpleGAN((x_train.shape[1],), latent_dim=20)
-        gan.train(x_train, train_steps=10000, batch_size=100, save_interval=500)
+        gan.train(x_train, train_steps=10000, batch_size=100)
         samples = gan.sample_G(n=500)
 
 

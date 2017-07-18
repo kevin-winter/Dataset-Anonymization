@@ -13,7 +13,7 @@ class SimpleGAN(GAN):
     def __init__(self, input_dim, latent_dim):
         GAN.__init__(self, input_dim, latent_dim)
 
-        self.intermediate_dim = (self.latent_dim + np.prod(self.input_dim)) // 2
+        self.intermediate_dim = (self.latent_dim + np.prod(self.input_dim))# // 2
         self.dropout = 0.4
 
         self.discriminator_model()

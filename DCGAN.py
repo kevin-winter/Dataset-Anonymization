@@ -80,12 +80,12 @@ class DCGAN(GAN):
         self.G.summary()
         return self.G
 
-    def show_samples(self, save2file=False, fake=True, samples=16, noise=None, step=0):
+    def show_samples(self, save2file=False, fake=True, n=16, noise=None, step=0):
         if fake:
 
             images = self.G.predict(noise)
         else:
-            i = np.random.randint(0, self.x_train.shape[0], samples)
+            i = np.random.randint(0, self.x_train.shape[0], n)
             images = self.x_train[i, :, :, :]
 
         plt.figure(figsize=(10, 10))
