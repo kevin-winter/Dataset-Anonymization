@@ -16,7 +16,7 @@ def split_data(X, y):
 
 
 
-def adult_dataset():
+def adult_dataset(drop_y=True):
     dtypes = {"age": int,
               "workclass": "category",
               "fnlwgt": int,
@@ -35,7 +35,8 @@ def adult_dataset():
 
     X = pd.read_csv("adult.txt", dtype=dtypes)
     y = X["salary"].cat.codes
-    X.drop("salary", axis=1, inplace=True)
+    if drop_y:
+        X.drop("salary", axis=1, inplace=True)
     return X, y
 
 

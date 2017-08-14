@@ -13,8 +13,10 @@ class Vectorizer:
     def fit_transform(self, df, scale=True, encode=True):
         df = df.copy()
         try:
+            self.dtypes  = df.dtypes.to_dict()
             self.columns = df.columns
             self.catcols = df.columns[df.dtypes.astype(str) == "category"]
+            self.categories = {col: df[col].cat.categories for col in df[self.catcols]}
 
             if encode:
                 if self.binary:
@@ -72,6 +74,9 @@ class Vectorizer:
             if descale:
                 df = self.mms.inverse_transform(df)
 
+        df = df.astype(self.dtypes)
+        for col in df[self.catcols]:
+            df[col].cat.set_categories(self.categories[col], inplace=True)
         return df
 
 

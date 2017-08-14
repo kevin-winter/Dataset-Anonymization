@@ -2,63 +2,22 @@ from yadlt.models.boltzmann.dbn import DeepBeliefNetwork
 from yadlt.utils import datasets, utilities
 from sklearn.neural_network import BernoulliRBM
 from sklearn.mixture import GaussianMixture
-from pandas import scatter_matrix
-import pandas as pd
-import seaborn as sns
-from scipy.stats import norm
-import numpy as np
-import matplotlib.pyplot as plt
 
 from datasets import adult_dataset, mnist_dataset, split_data
+from evaluation import *
 from Vectorizer import Vectorizer
 from SimpleGAN import SimpleGAN
 from DCGAN import DCGAN
 from VAE import VAE
 
 
-def plot_mnist_samples(vae):
-    n = 15
-    digit_size = 28
-    figure = np.zeros((digit_size * n, digit_size * n))
-    grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-    grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
-            z_sample = np.array([[xi, yi]])
-            x_decoded = vae._generator.predict(z_sample)
-            digit = x_decoded[0].reshape(digit_size, digit_size)
-            figure[i * digit_size: (i + 1) * digit_size,
-            j * digit_size: (j + 1) * digit_size] = digit
-
-    plt.figure(figsize=(10, 10))
-    plt.imshow(figure, cmap='Greys_r')
-    plt.show()
-
-
-def compare(original, sample):
-    f, ax = plt.subplots(2, original.shape[1])
-    for i in range(original.shape[1]):
-        ax[0, i].hist(original[:, i], normed=True)
-        ax[1, i].hist(sample[:, i], normed=True)
-        ax[1, i].set_xlim((0,1))
-    plt.show()
-
-
-def compare_matrix(original, sample):
-    scatter_matrix(pd.DataFrame(original), alpha=0.4)
-    scatter_matrix(pd.DataFrame(sample), alpha=0.4, marker="x")
-    plt.show()
-
-
 dataset = "adult"
-model = "gan"
+model = "gmm"
 binary_encoding = False
 reoder_categories = True
 
-
 if dataset == "adult":
-    X, y = adult_dataset()
+    X, y = adult_dataset(drop_y=False)
 
 elif dataset == "mnist":
     X, y = mnist_dataset()
@@ -66,19 +25,20 @@ elif dataset == "mnist":
 vec = Vectorizer(binary=binary_encoding)
 X_t = vec.fit_transform(X)
 x_train, x_test, y_train, y_test = split_data(X_t, y)
+n_samples = len(X)
 
 
 if model == "gmm":
-    gmm = GaussianMixture(n_components=3)
-    gmm.fit(x_train, y_train)
-    samples = gmm.sample(500)[0]
+    gmm = GaussianMixture(n_components=10)
+    gmm.fit(x_train)
+    samples = gmm.sample(n_samples)[0]
 
 
 if model == "vae":
-    vae = VAE(intermediate_dim=256, latent_dim=4, n_hiddenlayers=3)
-    vae.train(x_train, x_test, epochs=50, batch_size=200, early_stopping=True)
+    vae = VAE(intermediate_dim=40, latent_dim=4, n_hiddenlayers=2)
+    vae.train(x_train, x_test, epochs=50, batch_size=100, early_stopping=True)
     vae.plot_embedding(x_test, y_test)
-    samples = vae.sample_z(500)
+    samples = vae.sample_z(n_samples)
 
 
 if model == "dbn":
@@ -96,7 +56,6 @@ if model == "rbm":
     rbm = BernoulliRBM(batch_size=100, verbose=1, n_iter=20)
     rbm.fit(x_train)
 
-    n_samples = 500
     k = 100
     v = np.random.randint(2, size=(n_samples, x_train.shape[1]))
     for i in range(k):
@@ -116,18 +75,25 @@ if model == "gan":
         mnist_dcgan.train(x_train, train_steps=5000, batch_size=256, save_interval=500)
         mnist_dcgan.show_samples(fake=True)
         mnist_dcgan.show_samples(fake=False, save2file=True)
+        samples = mnist_dcgan.sample_G(n=n_samples)
 
     if dataset == "adult":
         gan = SimpleGAN((x_train.shape[1],), latent_dim=20)
         gan.train(x_train, train_steps=10000, batch_size=100)
-        samples = gan.sample_G(n=500)
+        samples = gan.sample_G(n=n_samples)
+
+
+
 
 
 if dataset == "adult":
     dec_samples = vec.inverse_transform(samples, clip=[0, 1])
     pd.DataFrame(dec_samples).to_excel("{}_adult_out.xlsx".format(model))
-    new = vec.transform(dec_samples).as_matrix()
-    compare(x_train, new)
+    new = vec.transform(dec_samples)
+    report(X, dec_samples)
+    #compare_histograms(x_train, new.as_matrix())
+    decision_tree_evaluation(X_t.drop("salary", axis=1).as_matrix(), y,
+                             samples[:, :-1], np.round(samples[:, -1]))
 
 if dataset == "mnist":
     plot_mnist_samples(vae)
