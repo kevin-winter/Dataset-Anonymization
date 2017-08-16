@@ -14,7 +14,7 @@ def categorical(col):
 
 
 def limits(*args):
-    return np.min(args), np.max(args)
+    return np.min(np.concatenate(args)), np.max(np.concatenate(args))
 
 
 def bins(limits, nbin=10):
@@ -22,16 +22,16 @@ def bins(limits, nbin=10):
 
 
 def bin_data(data, bins):
-    return pd.cut(data, bins)
+    return pd.cut(data, bins, include_lowest=True)
 
 
-def encode(a, b, same_var=True):
+def encode(a, b, same_var=True, lim=None):
     if same_var:
-        a, b = a.cat.codes if categorical(a) else bin_data(a, bins(limits(a, b))).cat.codes, \
-               b.cat.codes if categorical(b) else bin_data(b, bins(limits(a, b))).cat.codes
+        a, b = a.cat.codes if categorical(a) else bin_data(a, bins(lim if lim else limits(a, b))).cat.codes, \
+               b.cat.codes if categorical(b) else bin_data(b, bins(lim if lim else limits(a, b))).cat.codes
     else:
-        a, b = a.cat.codes if categorical(a) else bin_data(a, bins(limits(a))).cat.codes, \
-               b.cat.codes if categorical(b) else bin_data(b, bins(limits(b))).cat.codes
+        a, b = a.cat.codes if categorical(a) else bin_data(a, bins(lim if lim else limits(a))).cat.codes, \
+               b.cat.codes if categorical(b) else bin_data(b, bins(lim if lim else limits(b))).cat.codes
     return a, b
 
 
@@ -47,19 +47,26 @@ def cramers_corrected_v(a, b):
     return np.sqrt(phi2corr / max(1, min((kcorr-1), (rcorr-1)))), p
 
 
-def association_iid(original, sampled):
-    return np.mean([cramers_corrected_v(*encode(original[col], sampled[col])) for col in original], axis=0)
+def association_iid(original, sampled, limits=None):
+    return np.mean([cramers_corrected_v(*encode(original[col], sampled[col], lim=limits)) for col in original], axis=0)
 
 
-def accuracy_iid(original, sampled):
-    return np.mean([accuracy(*encode(original[col], sampled[col])) for col in original], axis=0)
+def accuracy_iid(original, sampled, limits=None):
+    return np.mean([accuracy(*encode(original[col], sampled[col], lim=limits)) for col in original], axis=0)
 
 
-def association(original, sampled):
+def correlation_difference(original, sampled, method="pearson"):
+    m = pd.get_dummies(original).shape[1]
+    corra = pd.get_dummies(original).corr(method=method)
+    corrb = pd.get_dummies(sampled).corr(method=method)
+    return 1 - np.tril(np.abs(corra - corrb), k=-1).sum() / (m*(m-1)/2)
+
+
+def association(original, sampled, limits=None):
     associations = []
     for var_a, var_b in combinations(original.columns, 2):
-        expected_cv = cramers_corrected_v(*encode(original[var_a], original[var_b], False))
-        sampled_cv = cramers_corrected_v(*encode(sampled[var_a], sampled[var_b], False))
+        expected_cv = cramers_corrected_v(*encode(original[var_a], original[var_b], False, limits))
+        sampled_cv = cramers_corrected_v(*encode(sampled[var_a], sampled[var_b], False, limits))
         associations.append(1 - np.abs(expected_cv[0] - sampled_cv[0]))
 
     return np.mean(associations)
@@ -79,20 +86,51 @@ def decision_tree_evaluation(xorig, yorig, xsamp, ysamp):
     clf2.fit(xsamp, ysamp)
     score2 = clf2.score(xorig, yorig)
 
-    print("\nClassification Accuracy for salary using decision trees:")
-    print("Original : {:.4f}".format(score1))
-    print("Sampled  : {:.4f}".format(score2))
-    print("Ratio    : {:.4f}".format(score2/score1))
-
     return score1, score2
 
 
-def report(original, sample):
-    print("----- Results ------")
-    print("Mean Accuracy   : {:.4f}".format(accuracy_iid(original, sample)))
-    print("Mean Cramer's V : {:.4f} {:.4f}".format(*association_iid(original, sample)))
-    print("Mean Inter-Variable Association : {:.4f}".format(association(original, sample)))
+def report(X, y, samples, vectorizer, model, dataset, binary, reorder):
+    print("----- Results for dataset {} using {} ------".format(dataset, model))
+    X_t = vectorizer.transform(X)
+    dec_samples = vectorizer.inverse_transform(samples, clip=[0, 1])
+    new = vectorizer.transform(dec_samples)
 
+    acc = accuracy_iid(X, dec_samples, vectorizer.feature_range)
+    print("Mean Accuracy   : {:.4f}".format(acc))
+
+    v, p = association_iid(X, dec_samples, vectorizer.feature_range)
+    print("Mean Cramer's V : {:.4f} {:.4f}".format(v, p))
+
+    person_diff = correlation_difference(X, dec_samples)
+    print("Pearson Correlation Difference : {:.4f}".format(person_diff))
+
+    spearman_diff = correlation_difference(X, dec_samples, "spearman")
+    print("Spearman Correlation Difference : {:.4f}".format(spearman_diff))
+
+    if dataset in ["adult", "binary"]:
+        if dataset == "adult":
+            av = "salary"
+        elif dataset == "binary":
+            av = "15"
+
+        iva = association(X, dec_samples, vectorizer.feature_range)
+        print("Mean Inter-Variable Association : {:.4f}".format(iva))
+
+        yaxis = [c for c in X_t.columns if av in c]
+        score1, score2 = decision_tree_evaluation(X_t.drop(yaxis, axis=1).as_matrix(), y,
+                                                  new.drop(yaxis, axis=1), new[av])
+        print("\nClassification Accuracy for {} using decision trees:".format(av))
+        print("Original : {:.4f}".format(score1))
+        print("Sampled  : {:.4f}".format(score2))
+        print("Ratio    : {:.4f}".format(score2/score1))
+
+        compare_histograms(X_t.as_matrix(), new.as_matrix())
+        pd.DataFrame(dec_samples).to_excel(
+            "{}_{}_{}_{}_out.xlsx".format(model, dataset, "binary" if binary else "cont", "reordered" if reorder else "regular"))
+        return acc, v, p, person_diff, spearman_diff, iva, score1, score2, score2/score1
+
+    if dataset == "mnist":
+        return acc, v, p, person_diff, spearman_diff
 
 
 def plot_mnist_samples(vae):

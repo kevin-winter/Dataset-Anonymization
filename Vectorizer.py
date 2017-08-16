@@ -35,7 +35,7 @@ class Vectorizer:
         except AttributeError:
             print("No Dataframe given. Only scaling possible.")
             if scale:
-                self.mms = pp.MinMaxScaler()
+                self.mms = pp.MinMaxScaler(feature_range=self.feature_range)
                 df = self.mms.fit_transform(df)
 
         return df
@@ -43,15 +43,20 @@ class Vectorizer:
     def transform(self, df, scale=True, encode=True):
         df = df.copy()
 
-        df.columns = self.columns
+        try:
+            df.columns = self.columns
 
-        if encode:
-            if self.binary:
-                df = pd.get_dummies(df)
-            else:
-                df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name].transform(x))
-        if scale:
-            df[df.columns] = self.mms.transform(df)
+            if encode:
+                if self.binary:
+                    df = pd.get_dummies(df)
+                else:
+                    df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name].transform(x))
+            if scale:
+                df[df.columns] = self.mms.transform(df)
+        except AttributeError:
+            print("No Dataframe given. Only scaling possible.")
+            if scale:
+                df = self.mms.transform(df)
 
         return df
 
@@ -69,14 +74,15 @@ class Vectorizer:
                 else:
                     df[self.catcols] = df[self.catcols].astype(int).apply(lambda x: self.le[x.name].inverse_transform(x))
 
+            df = df.astype(self.dtypes)
+            for col in df[self.catcols]:
+                df[col].cat.set_categories(self.categories[col], inplace=True)
+
         except AttributeError:
             print("No Dataframe given. Only descaling possible.")
             if descale:
                 df = self.mms.inverse_transform(df)
 
-        df = df.astype(self.dtypes)
-        for col in df[self.catcols]:
-            df[col].cat.set_categories(self.categories[col], inplace=True)
         return df
 
 
