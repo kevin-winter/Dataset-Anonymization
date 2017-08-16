@@ -1,12 +1,13 @@
-from pandas import scatter_matrix
-import pandas as pd
 from itertools import combinations
-from scipy.stats import norm, chi2_contingency
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from pandas import scatter_matrix
+from scipy.stats import norm, chi2_contingency
 from sklearn.tree import DecisionTreeClassifier as DTC
-import seaborn as sns
-from datasets import split_data
+
+from preprocessing.datasets import split_data
 
 
 def categorical(col):
@@ -90,7 +91,7 @@ def decision_tree_evaluation(xorig, yorig, xsamp, ysamp):
 
 
 def report(X, y, samples, vectorizer, model, dataset, binary, reorder):
-    print("----- Results for dataset {} using {} ------".format(dataset, model))
+    print("\n----- Results for dataset {} using {} ------".format(dataset, model))
     X_t = vectorizer.transform(X)
     dec_samples = vectorizer.inverse_transform(samples, clip=[0, 1])
     new = vectorizer.transform(dec_samples)

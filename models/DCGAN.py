@@ -1,12 +1,11 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from tensorflow.examples.tutorials.mnist import input_data
-
-from keras.models import Sequential
+import numpy as np
 from keras.layers import Dense, Activation, Flatten, Reshape, Conv2D, \
     Conv2DTranspose, UpSampling2D, LeakyReLU, Dropout, BatchNormalization
+from keras.models import Sequential
+from tensorflow.examples.tutorials.mnist import input_data
 
-from GAN import GAN
+from models.GAN import GAN
 
 
 class DCGAN(GAN):

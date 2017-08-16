@@ -1,12 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.examples.tutorials.mnist import input_data
-
+from keras.layers import Dense, Activation, LeakyReLU, Dropout, BatchNormalization
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Reshape, Conv2D, \
-    Conv2DTranspose, UpSampling2D, LeakyReLU, Dropout, BatchNormalization
 
-from GAN import GAN
+from models.GAN import GAN
 
 
 class SimpleGAN(GAN):

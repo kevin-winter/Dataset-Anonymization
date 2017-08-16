@@ -1,14 +1,12 @@
-from yadlt.models.boltzmann.dbn import DeepBeliefNetwork
-from yadlt.utils import datasets, utilities
-from sklearn.neural_network import BernoulliRBM
+from preprocessing.datasets import adult_dataset, mnist_dataset, binary_dataset, boston_houses_dataset
 from sklearn.mixture import GaussianMixture
+from sklearn.neural_network import BernoulliRBM
 
-from datasets import adult_dataset, mnist_dataset, split_data, binary_dataset, boston_houses_dataset
 from evaluation import *
-from Vectorizer import Vectorizer
-from SimpleGAN import SimpleGAN
-from DCGAN import DCGAN
-from VAE import VAE
+from models.DCGAN import DCGAN
+from models.SimpleGAN import SimpleGAN
+from models.VAE import VAE
+from preprocessing.Vectorizer import Vectorizer
 
 
 def to_one_hot(y):

@@ -1,8 +1,11 @@
-from sklearn import preprocessing as pp
-import pandas as pd
 from collections import defaultdict
+
 import numpy as np
-from LabelEncoder import LabelEncoder
+import pandas as pd
+from sklearn import preprocessing as pp
+
+from preprocessing.LabelEncoder import LabelEncoder
+
 
 class Vectorizer:
 
