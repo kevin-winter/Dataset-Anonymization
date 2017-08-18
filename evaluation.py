@@ -60,7 +60,7 @@ def correlation_difference(original, sampled, method="pearson"):
     m = pd.get_dummies(original).shape[1]
     corra = pd.get_dummies(original).corr(method=method)
     corrb = pd.get_dummies(sampled).corr(method=method)
-    return 1 - np.tril(np.abs(corra - corrb), k=-1).sum() / (m*(m-1)/2)
+    return 1 - np.nansum(np.tril((corra - corrb).abs())) / (m*(m-1)/2)
 
 
 def association(original, sampled, limits=None):
