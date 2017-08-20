@@ -34,7 +34,7 @@ def adult_dataset(drop_y=True):
               "native-country": "category",
               "salary": "category"}
 
-    X = pd.read_csv("adult.txt", dtype=dtypes)
+    X = pd.read_csv("./preprocessing/adult.txt", dtype=dtypes)
     y = X["salary"].cat.codes
     if drop_y:
         X.drop("salary", axis=1, inplace=True)

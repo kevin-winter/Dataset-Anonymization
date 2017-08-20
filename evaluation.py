@@ -90,7 +90,7 @@ def decision_tree_evaluation(xorig, yorig, xsamp, ysamp):
     return score1, score2
 
 
-def report(X, y, samples, vectorizer, model, dataset, binary, reorder):
+def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
     print("\n----- Results for dataset {} using {} ------".format(dataset, model))
     X_t = vectorizer.transform(X)
     dec_samples = vectorizer.inverse_transform(samples, clip=[0, 1])
@@ -105,8 +105,8 @@ def report(X, y, samples, vectorizer, model, dataset, binary, reorder):
     person_diff = correlation_difference(X, dec_samples)
     print("Pearson Correlation Difference : {:.4f}".format(person_diff))
 
-    spearman_diff = correlation_difference(X, dec_samples, "spearman")
-    print("Spearman Correlation Difference : {:.4f}".format(spearman_diff))
+    #spearman_diff = correlation_difference(X, dec_samples, "spearman")
+    #print("Spearman Correlation Difference : {:.4f}".format(spearman_diff))
 
     if dataset in ["adult", "binary"]:
         if dataset == "adult":
@@ -118,20 +118,23 @@ def report(X, y, samples, vectorizer, model, dataset, binary, reorder):
         print("Mean Inter-Variable Association : {:.4f}".format(iva))
 
         yaxis = [c for c in X_t.columns if av in c]
-        score1, score2 = decision_tree_evaluation(X_t.drop(yaxis, axis=1).as_matrix(), y,
-                                                  new.drop(yaxis, axis=1), new[av])
+        score1, score2 = decision_tree_evaluation(X_t.drop(yaxis, axis=1).as_matrix(), X_t[yaxis],
+                                                  new.drop(yaxis, axis=1), new[yaxis])
         print("\nClassification Accuracy for {} using decision trees:".format(av))
         print("Original : {:.4f}".format(score1))
         print("Sampled  : {:.4f}".format(score2))
         print("Ratio    : {:.4f}".format(score2/score1))
 
-        compare_histograms(X_t.as_matrix(), new.as_matrix())
-        pd.DataFrame(dec_samples).to_excel(
-            "{}_{}_{}_{}_out.xlsx".format(model, dataset, "binary" if binary else "cont", "reordered" if reorder else "regular"))
-        return acc, v, p, person_diff, spearman_diff, iva, score1, score2, score2/score1
+        #compare_histograms(X_t.as_matrix(), new.as_matrix())
+        #pd.DataFrame(dec_samples).to_excel(
+        #    "{}_{}_{}_{}_out.xlsx".format(model, dataset, "binary" if binary else "cont", "reordered" if reorder else "regular"))
+        results = acc, v, p, person_diff, iva, score1, score2
 
     if dataset == "mnist":
-        return acc, v, p, person_diff, spearman_diff
+        results = acc, v, p, person_diff, None, None, None
+
+    save_results(dataset, model, params, reorder, binary, *results)
+    return results
 
 
 def plot_mnist_samples(vae):
@@ -167,3 +170,13 @@ def compare_matrix(original, sample):
     scatter_matrix(pd.DataFrame(original), alpha=0.4)
     scatter_matrix(pd.DataFrame(sample), alpha=0.4, marker="x")
     plt.show()
+
+
+def save_results(*results):
+    try:
+        out = pd.read_excel("results.xlsx")
+    except:
+        out = pd.DataFrame(columns=["dataset", "algorithm","params", "reordered", "binary", "accuracy", "cramers_v", "chi2p",
+                                    "pearson", "iva", "dt_accuracy_original", "dt_accuracy_sampled"])
+    out.loc[out.shape[0]] = list(results)
+    out.to_excel("results.xlsx")

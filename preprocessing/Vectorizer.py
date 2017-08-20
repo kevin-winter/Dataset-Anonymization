@@ -13,7 +13,7 @@ class Vectorizer:
         self.binary = binary
         self.feature_range = feature_range
 
-    def fit_transform(self, df, scale=True, encode=True):
+    def fit_transform(self, df, scale=True, encode=True, reorder=False):
         df = df.copy()
         try:
             self.dtypes  = df.dtypes.to_dict()
@@ -26,9 +26,8 @@ class Vectorizer:
                     df = pd.get_dummies(df)
                 else:
                     self.le = defaultdict(LabelEncoder)
-                    df[self.catcols] = df[self.catcols].apply(lambda x: self.le[x.name]
-                                                              .fit(pyramid_sorted_categories(x), labels=True)
-                                                              .transform(x))
+                    df[self.catcols] = df[self.catcols].apply(lambda x:
+                        self.le[x.name].fit(pyramid_sorted_categories(x) if reorder else np.unique(x), labels=True).transform(x))
             if scale:
                 self.mms = pp.MinMaxScaler(feature_range=self.feature_range)
                 df[df.columns] = self.mms.fit_transform(df)
