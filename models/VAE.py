@@ -88,7 +88,7 @@ class VAE():
 
     def sample_z(self, n):
         X = np.random.normal(size=(n, self.latent_dim))
-        y = self._generator.predict(X, batch_size=n)
+        y = self._generator.predict(X, batch_size=32)
         return y
 
     def plot_embedding(self, x_test, y_test):

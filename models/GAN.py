@@ -33,7 +33,7 @@ class GAN:
     def adversarial_model(self):
         if self.AM:
             return self.AM
-        optimizer = Adam(lr=0.0001, decay=3e-8)
+        optimizer = Adam(lr=0.00015, decay=2e-8)
         self.AM = Sequential()
         self.AM.add(self.generator())
         self.AM.add(self.discriminator())
@@ -63,7 +63,7 @@ class GAN:
 
             #if self.hist[-1][0][1] >= self.hist[-1][1][1]:
             y = np.ones([batch_size, 1])
-            noise = np.random.uniform(0, 1.0, size=[batch_size, self.latent_dim])
+            noise = np.random.uniform(-1.0, 1.0, size=[batch_size, self.latent_dim])
             a_loss = self.AM.train_on_batch(noise, y)
             #d_loss = self.hist[-1][0]
 
@@ -73,7 +73,7 @@ class GAN:
 
             print(log_mesg)
 
-            if not i % 100 and i != 0:
+            if not i % 1000 and i != 0:
                 self.plot_progress(axes)
             if save_interval > 0:
                 if (i+1) % save_interval == 0:
@@ -93,7 +93,7 @@ class GAN:
 
     def sample_G(self, noise=None, n=16):
         if noise is None:
-            noise = np.random.uniform(-1.0, 1.0, size=[n, self.latent_dim])
+            noise = np.random.normal(size=[n, self.latent_dim])
         return self.G.predict(noise)
 
     def show_samples(self, save2file=False, fake=True, n=16, noise=None, step=0):

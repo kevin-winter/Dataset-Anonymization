@@ -7,11 +7,12 @@ from models.DCGAN import DCGAN
 from models.SimpleGAN import SimpleGAN
 from models.VAE import VAE
 from preprocessing.Vectorizer import Vectorizer
+import seaborn as sns
 
 
 def main(dataset, model, binary_encoding, reorder_categories):
     print("> Preprocessing")
-    vec = Vectorizer(binary=binary_encoding)
+    vec = Vectorizer(binary=binary_encoding, feature_range=(-1, 1))
 
     if dataset == "adult":
         X, y = adult_dataset(drop_y=False)
@@ -40,9 +41,9 @@ def main(dataset, model, binary_encoding, reorder_categories):
         samples = gmm.sample(n_samples)[0]
 
     elif model == "vae":
-        modelparams = [40, 40, 2]
-        vae = VAE(intermediate_dim=modelparams[0], latent_dim=modelparams[-1], n_hiddenlayers=len(modelparams))
-        vae.train(x_train, x_test, epochs=50, batch_size=32, early_stopping=True)
+        modelparams = [30, 30, 2]
+        vae = VAE(intermediate_dim=modelparams[0], latent_dim=modelparams[-1], n_hiddenlayers=len(modelparams) - 1)
+        vae.train(x_train, x_test, epochs=30, batch_size=128, early_stopping=True)
         #vae.plot_embedding(x_test, y_test)
         samples = vae.sample_z(n_samples)
 
@@ -58,7 +59,7 @@ def main(dataset, model, binary_encoding, reorder_categories):
 
         if dataset == "adult":
             gan = SimpleGAN((x_train.shape[1],), latent_dim=modelparams[0])
-            gan.train(x_train, train_steps=10000, batch_size=32)
+            gan.train(x_train, train_steps=10000, batch_size=128)
             samples = gan.sample_G(n=n_samples)
 
     elif model == "rbm":
@@ -67,52 +68,55 @@ def main(dataset, model, binary_encoding, reorder_categories):
         rbm.fit(x_train)
 
         v = np.random.randint(2, size=(n_samples, x_train.shape[1]))
-        for i in range(2):
+        for i in range(100):
             v = rbm.gibbs(v)
         samples = v
 
     report(X, y, samples, vec, model, modelparams, dataset, binary_encoding, reorder_categories)
 
 
-dataset = "adult"
-model = "gan"
-binary_encoding = False
-reorder_categories = False
+def test_all(trials=3):
+    for m in ["gmm", "vae", "rbm", "gan"]:
+        for b in range(2):
+            for r in range(2):
+                for _ in range(trials):
+                    main(dataset, m, b, r)
 
+
+dataset = "adult"
+model = "gmm"
+binary_encoding = True
+reorder_categories = True
 #main(dataset, model, binary_encoding, reorder_categories)
 
+test_all()
 
-for m in ["gan", "vae", "rbm", "gan"]:
-    for b in range(2):
-        for r in range(2):
-            main(dataset, m, b, r)
+'''  
 
-
-'''
 def to_one_hot(y):
     if len(np.shape(y)) == 1:
         return np.eye(np.max(y)+1)[y]
     else:
         return y
-
-
+        
+        
 if model == "dbn":
-    pretrain = False
-    #trX, trY, vlX, vlY, teX, teY = datasets.load_mnist_dataset(mode='supervised')
-    dbn = DeepBeliefNetwork(do_pretrain=pretrain, rbm_layers=[500, 10],
-                        finetune_learning_rate=0.2, finetune_num_epochs=20)
-    if pretrain:
-        dbn.pretrain(x_train)
-    dbn.fit(x_train, to_one_hot(y_train))
-    print('Test set accuracy: {}'.format(dbn.score(x_test, to_one_hot(y_test))))
-'''
+  pretrain = False
+  #trX, trY, vlX, vlY, teX, teY = datasets.load_mnist_dataset(mode='supervised')
+  dbn = DeepBeliefNetwork(do_pretrain=pretrain, rbm_layers=[500, 10],
+                      finetune_learning_rate=0.2, finetune_num_epochs=20)
+  if pretrain:
+      dbn.pretrain(x_train)
+  dbn.fit(x_train, to_one_hot(y_train))
+  print('Test set accuracy: {}'.format(dbn.score(x_test, to_one_hot(y_test))))
 
 
-'''
+  
+
 if dataset == "mnist":
-    #plot_mnist_samples(vae)
-    plt.figure(figsize=(10, 10))
-    for x in samples:
-        plt.imshow(x.reshape(28, 28), interpolation="none")
-        plt.show()
+  #plot_mnist_samples(vae)
+  plt.figure(figsize=(10, 10))
+  for x in samples:
+      plt.imshow(x.reshape(28, 28), interpolation="none")
+      plt.show()
 '''

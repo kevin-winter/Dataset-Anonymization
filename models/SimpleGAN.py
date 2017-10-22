@@ -20,11 +20,10 @@ class SimpleGAN(GAN):
         if self.D:
             return self.D
         self.D = Sequential()
-        dropout = 0.4
 
         self.D.add(Dense(self.intermediate_dim, input_shape=self.input_dim))
         self.D.add(LeakyReLU(alpha=0.2))
-        self.D.add(Dropout(dropout))
+        self.D.add(Dropout(self.dropout))
 
         self.D.add(Dense(self.intermediate_dim))
         self.D.add(LeakyReLU(alpha=0.2))

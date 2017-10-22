@@ -6,6 +6,7 @@ import pandas as pd
 from pandas import scatter_matrix
 from scipy.stats import norm, chi2_contingency
 from sklearn.tree import DecisionTreeClassifier as DTC
+from preprocessing.Vectorizer import Vectorizer
 
 from preprocessing.datasets import split_data
 
@@ -92,9 +93,10 @@ def decision_tree_evaluation(xorig, yorig, xsamp, ysamp):
 
 def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
     print("\n----- Results for dataset {} using {} ------".format(dataset, model))
-    X_t = vectorizer.transform(X)
-    dec_samples = vectorizer.inverse_transform(samples, clip=[0, 1])
-    new = vectorizer.transform(dec_samples)
+    vec2 = Vectorizer()
+    X_t = vec2.fit_transform(X, reorder=reorder)
+    dec_samples = vectorizer.inverse_transform(samples, clip=[-1, 1])
+    new = vec2.transform(dec_samples, apply_columns=False)
 
     acc = accuracy_iid(X, dec_samples, vectorizer.feature_range)
     print("Mean Accuracy   : {:.4f}".format(acc))
@@ -118,6 +120,7 @@ def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
         print("Mean Inter-Variable Association : {:.4f}".format(iva))
 
         yaxis = [c for c in X_t.columns if av in c]
+        print("Sampled class ratio : {:.4f}".format(np.ravel(new[yaxis]).sum()/len(new)))
         score1, score2 = decision_tree_evaluation(X_t.drop(yaxis, axis=1).as_matrix(), X_t[yaxis],
                                                   new.drop(yaxis, axis=1), new[yaxis])
         print("\nClassification Accuracy for {} using decision trees:".format(av))
@@ -125,9 +128,10 @@ def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
         print("Sampled  : {:.4f}".format(score2))
         print("Ratio    : {:.4f}".format(score2/score1))
 
-        #compare_histograms(X_t.as_matrix(), new.as_matrix())
-        #pd.DataFrame(dec_samples).to_excel(
-        #    "{}_{}_{}_{}_out.xlsx".format(model, dataset, "binary" if binary else "cont", "reordered" if reorder else "regular"))
+        compare_histograms(X_t, new)
+        plt.savefig("./results/figures/histcomp_{}_{}_{}_{}".format(model, dataset, "binary" if binary else "cont",
+                                                            "reordered" if reorder else "regular"))
+
         results = acc, v, p, person_diff, iva, score1, score2
 
     if dataset == "mnist":
@@ -158,12 +162,20 @@ def plot_mnist_samples(vae):
 
 
 def compare_histograms(original, sample):
-    f, ax = plt.subplots(2, original.shape[1])
+    cols = list(pd.DataFrame(original))
+    original, sample = np.asarray(original), np.asarray(sample)
+    f, ax = plt.subplots(2, original.shape[1], sharex=True, sharey=True, figsize=(20, 8))
+
     for i in range(original.shape[1]):
-        ax[0, i].hist(original[:, i], normed=True)
-        ax[1, i].hist(sample[:, i], normed=True)
-        ax[1, i].set_xlim((0,1))
-    plt.show()
+        ax[0, i].hist(original[:, i], normed=True, range=(0,1))
+        ax[0, i].set_title(cols[i])
+        ax[1, i].hist(sample[:, i], normed=True, range=(0,1))
+        ax[1, i].set_ylim((0,10))
+        ax[0, i].set_ylim((0,10))
+
+    f.tight_layout()
+    f.subplots_adjust(hspace=0)
+    #plt.show()
 
 
 def compare_matrix(original, sample):
@@ -174,9 +186,9 @@ def compare_matrix(original, sample):
 
 def save_results(*results):
     try:
-        out = pd.read_excel("results.xlsx")
+        out = pd.read_excel("./results/out.xlsx")
     except:
         out = pd.DataFrame(columns=["dataset", "algorithm","params", "reordered", "binary", "accuracy", "cramers_v", "chi2p",
                                     "pearson", "iva", "dt_accuracy_original", "dt_accuracy_sampled"])
     out.loc[out.shape[0]] = list(results)
-    out.to_excel("results.xlsx")
+    out.to_excel("./results/out.xlsx")

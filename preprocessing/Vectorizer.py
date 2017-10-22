@@ -42,11 +42,12 @@ class Vectorizer:
 
         return df
 
-    def transform(self, df, scale=True, encode=True):
+    def transform(self, df, scale=True, encode=True, apply_columns=True):
         df = df.copy()
 
         try:
-            df.columns = self.columns
+            if apply_columns:
+                df.columns = self.columns
 
             if encode:
                 if self.binary:

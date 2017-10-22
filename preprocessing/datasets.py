@@ -41,12 +41,14 @@ def adult_dataset(drop_y=True):
     return X, y
 
 
-def mnist_dataset():
+def mnist_dataset(dropy=True):
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     X = np.concatenate((x_train,x_test)).astype(float)/255
     X = X.reshape((len(X), np.prod(X.shape[1:])))
     y = np.concatenate((y_train,y_test))
     X = pd.DataFrame(X)
+    if not dropy:
+        X["target"] = y
     return X, y
 
 
