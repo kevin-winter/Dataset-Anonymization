@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pandas import scatter_matrix
+import os
 from scipy.stats import norm, chi2_contingency
 from sklearn.tree import DecisionTreeClassifier as DTC
 from preprocessing.Vectorizer import Vectorizer
@@ -93,9 +94,11 @@ def decision_tree_evaluation(xorig, yorig, xsamp, ysamp):
 
 def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
     print("\n----- Results for dataset {} using {} ------".format(dataset, model))
+
+    dec_samples = vectorizer.inverse_transform(samples, clip=vectorizer.feature_range)
+
     vec2 = Vectorizer()
     X_t = vec2.fit_transform(X, reorder=reorder)
-    dec_samples = vectorizer.inverse_transform(samples, clip=[-1, 1])
     new = vec2.transform(dec_samples, apply_columns=False)
 
     acc = accuracy_iid(X, dec_samples, vectorizer.feature_range)
@@ -129,6 +132,9 @@ def report(X, y, samples, vectorizer, model, params, dataset, binary, reorder):
         print("Ratio    : {:.4f}".format(score2/score1))
 
         compare_histograms(X_t, new)
+        if not os.path.exists("./results/figures"):
+            os.makedirs("./results/figures")
+
         plt.savefig("./results/figures/histcomp_{}_{}_{}_{}".format(model, dataset, "binary" if binary else "cont",
                                                             "reordered" if reorder else "regular"))
 
@@ -191,4 +197,6 @@ def save_results(*results):
         out = pd.DataFrame(columns=["dataset", "algorithm","params", "reordered", "binary", "accuracy", "cramers_v", "chi2p",
                                     "pearson", "iva", "dt_accuracy_original", "dt_accuracy_sampled"])
     out.loc[out.shape[0]] = list(results)
+    if not os.path.exists("./results"):
+        os.makedirs("./results")
     out.to_excel("./results/out.xlsx")

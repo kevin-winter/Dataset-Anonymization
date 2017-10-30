@@ -1,6 +1,7 @@
 from preprocessing.datasets import adult_dataset, mnist_dataset, binary_dataset, boston_houses_dataset
 from sklearn.mixture import GaussianMixture
 from sklearn.neural_network import BernoulliRBM
+from sklearn.naive_bayes import GaussianNB, BernoulliNB
 
 from evaluation import *
 from models.DCGAN import DCGAN
@@ -12,7 +13,7 @@ import seaborn as sns
 
 def main(dataset, model, binary_encoding, reorder_categories):
     print("> Preprocessing")
-    vec = Vectorizer(binary=binary_encoding, feature_range=(-1, 1))
+    vec = Vectorizer(binary=binary_encoding, feature_range=[0, 1])
 
     if dataset == "adult":
         X, y = adult_dataset(drop_y=False)
@@ -32,6 +33,7 @@ def main(dataset, model, binary_encoding, reorder_categories):
 
     x_train, x_test, y_train, y_test = split_data(X_t, y)
     n_samples = len(X)
+    modelparams = []
 
     print("> Training")
     if model == "gmm":
@@ -43,12 +45,18 @@ def main(dataset, model, binary_encoding, reorder_categories):
     elif model == "vae":
         modelparams = [30, 30, 2]
         vae = VAE(intermediate_dim=modelparams[0], latent_dim=modelparams[-1], n_hiddenlayers=len(modelparams) - 1)
-        vae.train(x_train, x_test, epochs=30, batch_size=128, early_stopping=True)
-        #vae.plot_embedding(x_test, y_test)
+        vae.train(x_train, x_test, epochs=50, batch_size=64, early_stopping=True)
+        vae.plot_embedding(x_test, y_test)
+
+        if not os.path.exists("./results/figures"):
+            os.makedirs("./results/figures")
+        plt.savefig("./results/figures/latentspace_{}_{}_{}_{}".format(
+            model, dataset, "binary" if binary_encoding else "cont", "reordered" if reorder_categories else "regular"))
+
         samples = vae.sample_z(n_samples)
 
     elif model == "gan":
-        modelparams=[5]
+        modelparams=[2]
         if dataset == "mnist":
             x_train = x_train.reshape(-1, 28, 28, 1).astype(np.float32)
             mnist_dcgan = DCGAN(28, 28, 1, latent_dim=modelparams[0])
@@ -56,6 +64,11 @@ def main(dataset, model, binary_encoding, reorder_categories):
             mnist_dcgan.show_samples(fake=True)
             mnist_dcgan.show_samples(fake=False, save2file=True)
             samples = mnist_dcgan.sample_G(n=n_samples)
+
+            if not os.path.exists("./results/figures"):
+                os.makedirs("./results/figures")
+            plt.savefig("./results/figures/latentspace_{}_{}_{}_{}".format(
+                model, dataset, "binary" if binary_encoding else "cont", "reordered" if reorder_categories else "regular"))
 
         if dataset == "adult":
             gan = SimpleGAN((x_train.shape[1],), latent_dim=modelparams[0])
@@ -72,6 +85,28 @@ def main(dataset, model, binary_encoding, reorder_categories):
             v = rbm.gibbs(v)
         samples = v
 
+    elif model == "gnb":
+        clf = GaussianNB()
+        clf.fit(x_train, y_train)
+        #sample
+        c = np.random.choice(len(clf.classes_), p=clf.class_prior_)
+        samples = []
+        for i in range(n_samples):
+            samples.append(np.random.multivariate_normal(clf.theta_[c], np.diag(clf.sigma_[c])))
+
+    elif model == "bnb":
+        clf = BernoulliNB(binarize=0.5)
+        clf.fit(x_train, y_train)
+        #sample
+        pc = np.exp(clf.intercept_) if len(clf.classes_) > 2 else np.concatenate((np.exp(clf.intercept_), 1-np.exp(clf.intercept_)))
+        c = np.random.choice(len(clf.classes_), p=pc)
+        pv = np.exp(clf.coef_[c]) if len(clf.classes_) > 2 else np.vstack((np.exp(clf.coef_), 1-np.exp(clf.coef_)))[c]
+        samples = []
+        for i in range(n_samples):
+            samples.append(np.random.binomial(1, p=pv))
+
+
+
     report(X, y, samples, vec, model, modelparams, dataset, binary_encoding, reorder_categories)
 
 
@@ -84,12 +119,12 @@ def test_all(trials=3):
 
 
 dataset = "adult"
-model = "gmm"
-binary_encoding = True
+model = "gnb"
+binary_encoding = False
 reorder_categories = True
-#main(dataset, model, binary_encoding, reorder_categories)
+main(dataset, model, binary_encoding, reorder_categories)
 
-test_all()
+#test_all()
 
 '''  
 

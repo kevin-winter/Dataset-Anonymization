@@ -96,7 +96,8 @@ class VAE():
         y_test = y_test[:len(x_test)//self.batch_size*self.batch_size]
         x_test_encoded = self._encoder.predict(x_test, batch_size=self.batch_size)
         plt.figure(figsize=(6, 6))
+        plt.title("VAE Latent Space")
         plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
         plt.colorbar()
-        plt.show()
+        #plt.show()
 

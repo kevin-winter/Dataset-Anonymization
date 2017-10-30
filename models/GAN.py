@@ -9,6 +9,7 @@ class GAN:
     def __init__(self, input_dim, latent_dim):
         self.input_dim = input_dim
         self.latent_dim = latent_dim
+        self.batch_size = 64
 
         self.D = None   # discriminator
         self.G = None   # generator
@@ -40,7 +41,8 @@ class GAN:
         self.AM.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
         return self.AM
 
-    def train(self, x_train, train_steps=2000, batch_size=256, save_interval=0):
+    def train(self, x_train, train_steps=2000, batch_size=64, save_interval=0):
+        self.batch_size = batch_size
         self.x_train = x_train
         noise_input = None
 
@@ -98,3 +100,13 @@ class GAN:
 
     def show_samples(self, save2file=False, fake=True, n=16, noise=None, step=0):
         raise NotImplementedError("Please define a generator model")
+
+    def plot_embedding(self, x_test, y_test):
+        x_test = x_test[:len(x_test)//self.batch_size*self.batch_size]
+        y_test = y_test[:len(x_test)//self.batch_size*self.batch_size]
+        x_test_encoded = self.DM.predict(x_test, batch_size=self.batch_size)
+        plt.figure(figsize=(6, 6))
+        plt.title("GAN Latent Space")
+        plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
+        plt.colorbar()
+        #plt.show()
